@@ -1,0 +1,106 @@
+!pip install icecream
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from icecream import ic
+
+dreams_df = pd.read_csv('Scary Dreams.csv')
+
+dreams_df.head()
+
+dreams_df.dtypes
+
+dreams_df['Month'] = dreams_df['Month'].astype('datetime64[ns]')
+dreams_df.dtypes
+dreams_df['Month']
+dreams_df
+
+dreams_df['dreams'] = dreams_df['scary dreams: (United States)']
+dreams_df = dreams_df.drop('scary dreams: (United States)', axis=1)
+dreams_df.rename(columns = {'Month':'date'}, inplace = True)
+dreams_df.head()
+
+dreams_df['year'] = dreams_df['date'].dt.year
+dreams_df['month'] = dreams_df['date'].dt.month
+dreams_df.head()
+
+dreams_df = dreams_df[['date', 'year', 'month', 'dreams']]
+dreams_df.dtypes
+
+sns.lineplot(data=dreams_df, x='date', y='dreams');
+
+dreams_min_max = dreams_df.groupby(['year', 'month'])['dreams'].sum().reset_index()
+print("Year and month with the most dreams:\n", dreams_min_max[dreams_min_max['dreams']==dreams_min_max['dreams'].max()], "\n")
+print("Year and month with the least dreams:\n", dreams_min_max[dreams_min_max['dreams']==dreams_min_max['dreams'].min()])
+
+dreams_monthly = dreams_df[['month', 'dreams']].groupby('month')['dreams'].sum().reset_index()
+dreams_monthly
+
+fig, axes = plt.subplots(1, 2, figsize=(12,6))
+
+sns.lineplot(data=dreams_df, x='date', y='dreams', ax=axes[0]).set(title='Scary Dreams by Date', xlabel='Date', ylabel ='Number of Scary Dreams')
+sns.barplot(data=dreams_monthly, x='month', y='dreams', ax=axes[1], palette=['grey' if (x < max(dreams_monthly['dreams'])) else 'orange' for x in dreams_monthly['dreams']]).set(title='Scary Dreams by Month', xlabel='Month', ylabel='Number of Scary Dreams');
+# show highest total per month ever, lowest total month ever
+# show prime numbers
+# show fibonacci numbers
+
+fig.show()
+
+#start prediction work
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+import statsmodels.api as stats
+
+dreams_df.head()
+
+dreams_df['date_cont'] = dreams_df.date.astype(int)/10**11
+dreams_df
+
+dreams_train_df = dreams_df.sample(frac=0.8, random_state=42)
+dreams_test_df = dreams_df.drop(dreams_train_df.index)
+print("training data shape: ", dreams_train_df.shape)
+print("testing data shape: ", dreams_test_df.shape)
+
+plt.scatter(dreams_train_df.date_cont, dreams_train_df.dreams)
+plt.xlabel('date')
+plt.ylabel('number of dreams')
+plt.show()
+
+x_train = dreams_train_df.date_cont
+y_train = dreams_train_df.dreams
+
+model_dreams = stats.OLS(y_train, x_train)
+results_dreams = model_dreams.fit()
+
+print(results_dreams.summary())
+
+date_coeff = results_dreams.params[0]
+ssr_dreams = results_dreams.ssr
+
+# print('The intercept value is {:.3f}'.format(intercept_dreams))
+# print('The coefficient (slope) for the years of experience independent variable is {:.3f}'.format(date_coeff))
+# print('The sum of square residuals is {:.1f}'.format(ssr_dreams))
+print("date coefficient: ", date_coeff)
+print("sum of square residuals: ", ssr_dreams)
+
+x_synthetic = np.linspace(12000000,dreams_train_df.date_cont.max(), 50)
+y_pred_dreams = date_coeff*x_synthetic + 0 #intercept is zero
+plt.scatter(dreams_train_df.date_cont, dreams_train_df.dreams, label='Observed')
+plt.plot(x_synthetic, y_pred_dreams, color='k', ls='--', label='Model')
+plt.xlabel('Date')
+plt.ylabel('Number of Dreams')
+plt.legend()
+plt.show()
+
+x_test = dreams_test_df.date_cont
+y_test = dreams_test_df.dreams
+
+test_predictions = results_dreams.predict(x_test)
+
+plt.scatter(test_predictions, y_test)
+plt.plot([40, 80], [10, 150], c='k', ls='--')
+plt.xlabel('Date')
+plt.ylabel('Number of Dreams')
+plt.show();
